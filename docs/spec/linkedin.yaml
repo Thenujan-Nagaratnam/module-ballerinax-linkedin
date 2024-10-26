@@ -1,0 +1,235 @@
+openapi: 3.0.0
+info:
+  title: LinkedIn Share API
+  description: Share content on LinkedIn, including text, articles, images, and videos.
+  version: 1.0.0
+servers:
+  - url: https://api.linkedin.com/v2
+    description: LinkedIn API server
+paths:
+  /userinfo:
+    get:
+      summary: Retrieve LinkedIn member profile
+      description: Fetches member profile details using the ID token or access token.
+      operationId: getMemberProfile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Successful response with the member's profile details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sub:
+                    type: string
+                    description: Subject Identifier
+                  name:
+                    type: string
+                    description: Full name of the member
+                  given_name:
+                    type: string
+                    description: Member's first name
+                  family_name:
+                    type: string
+                    description: Member's last name
+                  picture:
+                    type: string
+                    description: URL of the member's profile picture
+                  locale:
+                    $ref: "#/components/schemas/Locale"
+                    description: Locale of the member
+                  email:
+                    type: string
+                    description: Primary email address of the member (optional)
+                  email_verified:
+                    type: boolean
+                    description: Whether the member's email has been verified (optional)
+        "401":
+          description: Unauthorized request due to missing or invalid token.
+        "500":
+          description: Internal server error.
+
+  /ugcPosts:
+    post:
+      summary: Create a Share on LinkedIn
+      description: Create a text, article, image, or video share on LinkedIn.
+      operationId: createShare
+      requestBody:
+        description: The request body for creating a share.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                author:
+                  type: string
+                  description: The URN of the person creating the share (e.g., "urn:li:person:12345").
+                lifecycleState:
+                  type: string
+                  description: State of the share. Always set to "PUBLISHED".
+                  example: PUBLISHED
+                specificContent:
+                  type: object
+                  description: Defines the content of the share.
+                  properties:
+                    com.linkedin.ugc.ShareContent:
+                      type: object
+                      properties:
+                        shareCommentary:
+                          type: object
+                          properties:
+                            text:
+                              type: string
+                              description: Text content of the share.
+                              example: "Hello World! This is my first Share on LinkedIn!"
+                        shareMediaCategory:
+                          type: string
+                          description: Media type of the share.
+                          enum:
+                            - NONE
+                            - ARTICLE
+                            - IMAGE
+                            - VIDEO
+                          example: NONE
+                        media:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              status:
+                                type: string
+                                example: READY
+                              description:
+                                type: object
+                                properties:
+                                  text:
+                                    type: string
+                                    description: A short description of the media.
+                              originalUrl:
+                                type: string
+                                description: The URL of the article if it's an article share.
+                              media:
+                                type: string
+                                description: The URN of the uploaded media asset (for images/videos).
+                visibility:
+                  type: object
+                  description: Defines visibility of the share.
+                  properties:
+                    com.linkedin.ugc.MemberNetworkVisibility:
+                      type: string
+                      description: Visibility scope.
+                      enum:
+                        - PUBLIC
+                        - CONNECTIONS
+                      example: PUBLIC
+      responses:
+        "201":
+          description: Share created successfully.
+          headers:
+            X-RestLi-Id:
+              description: The ID of the created share.
+              schema:
+                type: string
+        "400":
+          description: Bad request.
+        "401":
+          description: Unauthorized or invalid token.
+        "403":
+          description: Forbidden access.
+        "500":
+          description: Internal server error.
+
+  /assets:
+    post:
+      summary: Register image or video for upload
+      description: Registers an image or video for uploading.
+      operationId: registerUpload
+      parameters:
+        - in: query
+          name: action
+          required: true
+          schema:
+            type: string
+            example: registerUpload
+      requestBody:
+        description: Register upload request body.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                registerUploadRequest:
+                  type: object
+                  properties:
+                    recipes:
+                      type: array
+                      items:
+                        type: string
+                        description: Recipe for the media being uploaded (e.g., "feedshare-image").
+                    owner:
+                      type: string
+                      description: URN of the person uploading the media (e.g., "urn:li:person:12345").
+                    serviceRelationships:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          relationshipType:
+                            type: string
+                            example: OWNER
+                          identifier:
+                            type: string
+                            example: urn:li:userGeneratedContent
+      responses:
+        "200":
+          description: Upload registration successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: object
+                    properties:
+                      uploadMechanism:
+                        type: object
+                        properties:
+                          com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest:
+                            type: object
+                            properties:
+                              uploadUrl:
+                                type: string
+                                description: URL to upload the media.
+                      mediaArtifact:
+                        type: string
+                        description: URN of the media artifact.
+                      asset:
+                        type: string
+                        description: URN of the digital media asset.
+        "400":
+          description: Bad request.
+        "401":
+          description: Unauthorized or invalid token.
+        "500":
+          description: Internal server error.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Locale:
+      type: object
+      properties:
+        country:
+          type: string
+          description: The country part of the locale.
+        language:
+          type: string
+          description: The language part of the locale.
